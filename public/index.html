@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Market Research Tool</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f9f9f7; color: #1a1a1a; padding: 2rem; }
+    h1 { font-size: 22px; font-weight: 600; margin-bottom: 6px; }
+    .subtitle { font-size: 14px; color: #666; margin-bottom: 2rem; }
+    .input-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field label { font-size: 13px; color: #555; font-weight: 500; }
+    input, select { padding: 9px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; background: white; outline: none; }
+    input:focus, select:focus { border-color: #999; }
+    .run-btn { width: 100%; padding: 11px; background: #1a1a1a; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; margin-top: 8px; }
+    .run-btn:hover { background: #333; }
+    .run-btn:disabled { background: #999; cursor: not-allowed; }
+    .status { display: none; padding: 12px 16px; background: #f0f0ee; border-radius: 8px; font-size: 13px; color: #555; margin-top: 16px; }
+    .status.visible { display: block; }
+    .results { display: none; margin-top: 20px; flex-direction: column; gap: 14px; }
+    .results.visible { display: flex; }
+    .card { background: white; border: 1px solid #e8e8e8; border-radius: 12px; padding: 1.25rem; }
+    .card h3 { font-size: 12px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
+    .card p { font-size: 14px; line-height: 1.7; white-space: pre-wrap; }
+    .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .metric { background: #f5f5f3; border-radius: 8px; padding: 14px; }
+    .metric .label { font-size: 12px; color: #888; margin-bottom: 4px; }
+    .metric .value { font-size: 20px; font-weight: 600; }
+    .copy-btn { margin-top: 12px; padding: 6px 12px; font-size: 12px; background: none; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; color: #555; }
+    .copy-btn:hover { background: #f5f5f5; }
+    .meta { font-size: 12px; color: #aaa; margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee; }
+  </style>
+</head>
+<body>
+  <h1>Market Research Tool</h1>
+  <p class="subtitle">Enter a competitor or product to generate a research report.</p>
+  <div class="input-row">
+    <div class="field">
+      <label>Competitor or product name</label>
+      <input type="text" id="competitor" placeholder="e.g. Shopify, Notion, Tesla" />
+    </div>
+    <div class="field">
+      <label>Your industry / niche</label>
+      <input type="text" id="industry" placeholder="e.g. e-commerce, SaaS, EVs" />
+    </div>
+  </div>
+  <div class="input-row">
+    <div class="field">
+      <label>Target customer</label>
+      <input type="text" id="customer" placeholder="e.g. small business owners" />
+    </div>
+    <div class="field">
+      <label>Report focus</label>
+      <select id="focus">
+        <option value="full">Full competitive analysis</option>
+        <option value="pricing">Pricing & positioning</option>
+        <option value="customers">Customer pain points</option>
+        <option value="gaps">Market gaps & opportunities</option>
+        <option value="swot">SWOT analysis</option>
+      </select>
+    </div>
+  </div>
+  <button class="run-btn" id="runBtn" onclick="runResearch()">Generate research report</button>
+  <div class="status" id="status">Analyzing... this takes about 10 seconds.</div>
+  <div class="results" id="results">
+    <div class="card"><h3>Quick stats</h3><div class="metrics" id="metrics"></div></div>
+    <div class="card"><h3>Overview</h3><p id="overview"></p></div>
+    <div class="card"><h3>Strengths & weaknesses</h3><p id="strengths"></p></div>
+    <div class="card"><h3>Opportunities for you</h3><p id="opportunities"></p></div>
+    <div class="card">
+      <h3>Action items</h3><p id="actions"></p>
+      <p class="meta" id="meta"></p>
+      <button class="copy-btn" onclick="copyReport()">Copy full report</button>
+    </div>
+  </div>
+  <script>
+    let fullReport = '';
+    async function runResearch() {
+      const competitor = document.getElementById('competitor').value.trim();
+      const industry = document.getElementById('industry').value.trim();
+      const customer = document.getElementById('customer').value.trim();
+      const focus = document.getElementById('focus').value;
+      if (!competitor) { alert('Please enter a competitor name.'); return; }
+      document.getElementById('runBtn').disabled = true;
+      document.getElementById('status').classList.add('visible');
+      document.getElementById('results').classList.remove('visible');
+      const prompt = `You are a professional market research analyst. Generate a ${focus} report for:
+Competitor: ${competitor}
+Industry: ${industry || 'general'}
+Target customer: ${customer || 'general consumers'}
+Return ONLY valid JSON, no markdown, no extra text:
+{
+  "metrics": [
+    {"label": "Market position", "value": "e.g. Leader"},
+    {"label": "Est. market share", "value": "e.g. 28%"},
+    {"label": "Threat level", "value": "e.g. High"}
+  ],
+  "overview": "3-4 sentence overview.",
+  "strengths": "✓ Strength one\n✓ Strength two\n✓ Strength three\n✗ Weakness one\n✗ Weakness two\n✗ Weakness three",
+  "opportunities": "3-4 sentences on opportunities.",
+  "actions": "1. Action one\n2. Action two\n3. Action three\n4. Action four\n5. Action five"
+}`;
+      try {
+        const res = await fetch('/api/research', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt })
+        });
+        const data = await res.json();
+        const text = data.content.map(i => i.text || '').join('');
+        const parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
+        document.getElementById('metrics').innerHTML = parsed.metrics.map(m =>
+          `<div class="metric"><div class="label">${m.label}</div><div class="value">${m.value}</div></div>`
+        ).join('');
+        document.getElementById('overview').textContent = parsed.overview;
+        document.getElementById('strengths').textContent = parsed.strengths;
+        document.getElementById('opportunities').textContent = parsed.opportunities;
+        document.getElementById('actions').textContent = parsed.actions;
+        document.getElementById('meta').textContent = `Generated ${new Date().toLocaleDateString()} · ${competitor}`;
+        fullReport = `MARKET RESEARCH: ${competitor}\n\nOVERVIEW\n${parsed.overview}\n\nSTRENGTHS & WEAKNESSES\n${parsed.strengths}\n\nOPPORTUNITIES\n${parsed.opportunities}\n\nACTIONS\n${parsed.actions}`;
+        document.getElementById('results').classList.add('visible');
+      } catch (err) {
+        alert('Something went wrong. Check your internet connection and try again.');
+        console.error(err);
+      }
+      document.getElementById('status').classList.remove('visible');
+      document.getElementById('runBtn').disabled = false;
+    }
+    function copyReport() {
+      navigator.clipboard.writeText(fullReport).then(() => {
+        const btn = event.target;
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = 'Copy full report'; }, 2000);
+      });
+    }
+  </script>
+</body>
+</html>

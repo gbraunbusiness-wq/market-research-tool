@@ -9,10 +9,18 @@ module.exports = async function handler(req, res) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
 
   if (!apiKey) {
-    return res.status(500).json({ error: 'API key not configured' });
+    return res.status(500).json({ error: 'API key is missing' });
+  }
+
+  if (!req.body) {
+    return res.status(500).json({ error: 'Request body is missing' });
   }
 
   const { prompt } = req.body;
+
+  if (!prompt) {
+    return res.status(500).json({ error: 'Prompt is missing' });
+  }
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -23,15 +31,20 @@ module.exports = async function handler(req, res) {
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 1000,
         messages: [{ role: 'user', content: prompt }]
       })
     });
 
+    if (!response.ok) {
+      const errorText = await response.text();
+      return res.status(500).json({ error: 'Anthropic API error', details: errorText });
+    }
+
     const data = await response.json();
     return res.status(200).json(data);
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message, stack: err.stack });
   }
 }
